@@ -413,104 +413,280 @@
             chatHistory.push({ sender, text });
         }
 
+        // Advanced text analysis functions
+        function analyzeTextStructure() {
+            const sentences = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+            const paragraphs = extractedText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+            const words = extractedText.split(/\s+/).filter(w => w.length > 0);
+            const avgWordsPerSentence = words.length / sentences.length;
+            
+            return {
+                sentences: sentences.length,
+                paragraphs: paragraphs.length,
+                words: words.length,
+                characters: extractedText.length,
+                avgWordsPerSentence: Math.round(avgWordsPerSentence * 10) / 10
+            };
+        }
+
+        function detectDocumentType() {
+            const lowerText = extractedText.toLowerCase();
+            const patterns = {
+                'contract': ['contract', 'partea', 'clauza', 'obligații', 'drepturi', 'semnătură'],
+                'factură': ['factură', 'total', 'tva', 'subtotal', 'valoare', 'client', 'furnizor'],
+                'CV': ['experiență', 'educație', 'competențe', 'skills', 'telefon', 'email', 'limba'],
+                'carte de vizită': ['telefon', 'email', 'adresă', 'director', 'manager', 'www'],
+                'document oficial': ['ministerul', 'primăria', 'nr.', 'înregistrat', 'stampila'],
+                'articol': ['paragraful', 'capitolul', 'conform', 'articolul', 'prezenta'],
+                'rețetă': ['ingrediente', 'mod de preparare', 'linguri', 'grame', 'minute'],
+                'manual': ['instrucțiuni', 'pas', 'atenție', 'instalare', 'configurare']
+            };
+
+            for (const [type, keywords] of Object.entries(patterns)) {
+                const matches = keywords.filter(keyword => lowerText.includes(keyword)).length;
+                if (matches >= 2) {
+                    return type;
+                }
+            }
+            return 'document general';
+        }
+
+        function extractKeywords() {
+            const words = extractedText.toLowerCase()
+                .replace(/[^\w\săâîșțĂÂÎȘȚ]/g, ' ')
+                .split(/\s+/)
+                .filter(word => word.length > 3);
+            
+            // Romanian stopwords
+            const stopwords = ['pentru', 'este', 'sunt', 'această', 'acest', 'unei', 'unui', 'care', 'prin', 'către', 'după', 'asupra', 'astfel', 'poate', 'foarte', 'toate', 'toate', 'când', 'unde', 'with', 'this', 'that', 'they', 'have', 'will', 'from', 'been', 'more', 'were', 'said', 'each', 'which', 'their', 'time', 'would', 'there', 'could', 'other'];
+            
+            const filteredWords = words.filter(word => !stopwords.includes(word));
+            
+            // Count frequency
+            const frequency = {};
+            filteredWords.forEach(word => {
+                frequency[word] = (frequency[word] || 0) + 1;
+            });
+            
+            // Get top keywords
+            return Object.entries(frequency)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .map(([word, count]) => ({ word, count }));
+        }
+
+        function analyzeSentiment() {
+            const positiveWords = ['bun', 'excelent', 'perfect', 'frumos', 'mulțumit', 'recomand', 'calitate', 'professional', 'succes', 'fericit', 'good', 'excellent', 'perfect', 'great', 'amazing', 'wonderful', 'happy', 'satisfied'];
+            const negativeWords = ['rău', 'prost', 'problema', 'greșeală', 'neprofesionist', 'nemulțumit', 'scump', 'dificil', 'bad', 'terrible', 'awful', 'problem', 'error', 'difficult', 'expensive', 'disappointed'];
+            
+            const lowerText = extractedText.toLowerCase();
+            const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+            const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+            
+            if (positiveCount > negativeCount) return 'pozitiv';
+            if (negativeCount > positiveCount) return 'negativ';
+            return 'neutru';
+        }
+
+        function extractImportantInfo() {
+            const info = {
+                emails: extractedText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [],
+                phones: extractedText.match(/(\+?\d{1,4}[-.\s]?)?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g) || [],
+                dates: extractedText.match(/\d{1,2}[/.,-]\d{1,2}[/.,-]\d{2,4}|\d{1,2}\s+(ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{2,4}/gi) || [],
+                urls: extractedText.match(/https?:\/\/[^\s]+|www\.[^\s]+/g) || [],
+                prices: extractedText.match(/\d+[.,]\d+\s*(lei|ron|eur|usd|\$|€)/gi) || [],
+                numbers: extractedText.match(/\b\d{4,}\b/g) || []
+            };
+            return info;
+        }
+
+        function generateSmartSummary() {
+            const sentences = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+            if (sentences.length === 0) return 'Nu pot genera un rezumat pentru acest text.';
+            
+            // Get first and potentially most important sentences
+            const firstSentence = sentences[0].trim();
+            const lastSentence = sentences[sentences.length - 1].trim();
+            
+            // Find sentences with numbers, dates, or important keywords
+            const importantKeywords = ['important', 'urgent', 'atenție', 'obligatoriu', 'necesar', 'trebuie', 'must', 'required'];
+            const importantSentences = sentences.filter(sentence => 
+                importantKeywords.some(keyword => sentence.toLowerCase().includes(keyword)) ||
+                /\d/.test(sentence)
+            );
+            
+            let summary = `Rezumat: ${firstSentence}`;
+            
+            if (importantSentences.length > 0 && importantSentences[0] !== firstSentence) {
+                summary += ` De asemenea: ${importantSentences[0].trim()}`;
+            }
+            
+            if (sentences.length > 2 && lastSentence !== firstSentence) {
+                summary += ` Concluzie: ${lastSentence}`;
+            }
+            
+            return summary;
+        }
+
         function generateAIResponse(question) {
             const lowerQuestion = question.toLowerCase();
             const lowerText = extractedText.toLowerCase();
             
-            // Simple keyword-based responses
-            if (lowerQuestion.includes('câte cuvinte') || lowerQuestion.includes('cate cuvinte')) {
-                const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-                return `Textul conține ${wordCount} cuvinte.`;
+            // Advanced document analysis
+            if (lowerQuestion.includes('tip') && (lowerQuestion.includes('document') || lowerQuestion.includes('text'))) {
+                const docType = detectDocumentType();
+                const structure = analyzeTextStructure();
+                return `Acest pare să fie un ${docType}. Documentul conține ${structure.sentences} propoziții organizate în ${structure.paragraphs} paragrafe, cu o medie de ${structure.avgWordsPerSentence} cuvinte per propoziție.`;
             }
-            
-            if (lowerQuestion.includes('câte caractere') || lowerQuestion.includes('cate caractere')) {
-                return `Textul conține ${extractedText.length} caractere (inclusiv spații).`;
+
+            // Comprehensive analysis
+            if (lowerQuestion.includes('analiză') || lowerQuestion.includes('analiza')) {
+                const structure = analyzeTextStructure();
+                const docType = detectDocumentType();
+                const sentiment = analyzeSentiment();
+                const keywords = extractKeywords();
+                
+                return `Analiză completă:\n📄 Tip: ${docType}\n📊 Structură: ${structure.words} cuvinte, ${structure.sentences} propoziții\n🎭 Tonul: ${sentiment}\n🔑 Cuvinte cheie: ${keywords.map(k => k.word).join(', ')}\n📈 Complexitate: ${structure.avgWordsPerSentence > 15 ? 'înaltă' : structure.avgWordsPerSentence > 10 ? 'medie' : 'scăzută'}`;
             }
-            
+
+            // Smart summary
             if (lowerQuestion.includes('sumar') || lowerQuestion.includes('rezumat')) {
-                const sentences = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 0);
-                if (sentences.length > 0) {
-                    return `Textul conține ${sentences.length} propoziții. Prima propoziție: "${sentences[0].trim()}..."`;
-                }
-                return 'Nu pot face un rezumat al acestui text.';
+                return generateSmartSummary();
             }
-            
-            if (lowerQuestion.includes('conține') || lowerQuestion.includes('contine')) {
-                const searchTerm = question.split(/conține|contine/i)[1]?.trim().replace(/[?"]/g, '');
-                if (searchTerm && lowerText.includes(searchTerm.toLowerCase())) {
-                    return `Da, textul conține "${searchTerm}".`;
-                } else if (searchTerm) {
-                    return `Nu, textul nu conține "${searchTerm}".`;
+
+            // Keywords extraction
+            if (lowerQuestion.includes('cuvinte cheie') || lowerQuestion.includes('keywords')) {
+                const keywords = extractKeywords();
+                if (keywords.length > 0) {
+                    return `Cuvintele cheie cele mai frecvente sunt: ${keywords.map(k => `"${k.word}" (${k.count}x)`).join(', ')}. Acestea sugerează că textul se concentrează pe ${keywords[0].word}.`;
                 }
+                return 'Nu am putut identifica cuvinte cheie distinctive în acest text.';
             }
-            
-            if (lowerQuestion.includes('limba') || lowerQuestion.includes('language')) {
-                // Simple language detection
-                const romanianWords = ['și', 'sau', 'în', 'cu', 'de', 'la', 'pe', 'pentru', 'din', 'către'];
-                const englishWords = ['the', 'and', 'or', 'in', 'with', 'of', 'at', 'on', 'for', 'from'];
+
+            // Information extraction
+            if (lowerQuestion.includes('informații') || lowerQuestion.includes('informatii') || lowerQuestion.includes('extrage')) {
+                const info = extractImportantInfo();
+                let result = 'Informații importante găsite:\n';
                 
-                const hasRomanian = romanianWords.some(word => lowerText.includes(word));
-                const hasEnglish = englishWords.some(word => lowerText.includes(word));
+                if (info.emails.length > 0) result += `📧 Email-uri: ${info.emails.join(', ')}\n`;
+                if (info.phones.length > 0) result += `📞 Telefoane: ${info.phones.join(', ')}\n`;
+                if (info.dates.length > 0) result += `📅 Date: ${info.dates.join(', ')}\n`;
+                if (info.urls.length > 0) result += `🌐 URL-uri: ${info.urls.join(', ')}\n`;
+                if (info.prices.length > 0) result += `💰 Prețuri: ${info.prices.join(', ')}\n`;
+                if (info.numbers.length > 0) result += `🔢 Numere: ${info.numbers.slice(0, 3).join(', ')}\n`;
                 
-                if (hasRomanian && hasEnglish) {
-                    return 'Textul pare să conțină atât română cât și engleză.';
-                } else if (hasRomanian) {
-                    return 'Textul pare să fie în română.';
-                } else if (hasEnglish) {
-                    return 'Textul pare să fie în engleză.';
-                }
-                return 'Nu pot determina cu certitudine limba textului.';
+                return result || 'Nu am găsit informații structurate specifice (email-uri, telefoane, date, etc.) în acest text.';
             }
-            
-            if (lowerQuestion.includes('email') || lowerQuestion.includes('mail')) {
-                const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-                const emails = extractedText.match(emailRegex);
-                if (emails) {
-                    return `Am găsit ${emails.length} adrese de email: ${emails.join(', ')}`;
-                }
-                return 'Nu am găsit adrese de email în text.';
+
+            // Sentiment analysis
+            if (lowerQuestion.includes('sentiment') || lowerQuestion.includes('ton') || lowerQuestion.includes('atitudine')) {
+                const sentiment = analyzeSentiment();
+                const reasons = [];
+                
+                if (sentiment === 'pozitiv') reasons.push('conține cuvinte cu conotații pozitive');
+                if (sentiment === 'negativ') reasons.push('conține termeni care sugerează probleme sau nemulțumiri');
+                if (sentiment === 'neutru') reasons.push('are un ton obiectiv, fără încărcătură emoțională puternică');
+                
+                return `Tonul textului pare să fie ${sentiment}${reasons.length > 0 ? ` - ${reasons[0]}` : ''}.`;
             }
-            
-            if (lowerQuestion.includes('telefon') || lowerQuestion.includes('phone')) {
-                const phoneRegex = /(\+?\d{1,4}[-.\s]?)?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g;
-                const phones = extractedText.match(phoneRegex);
-                if (phones) {
-                    return `Am găsit posibile numere de telefon: ${phones.join(', ')}`;
-                }
-                return 'Nu am identificat numere de telefon în text.';
+
+            // Statistical analysis
+            if (lowerQuestion.includes('statistici') || lowerQuestion.includes('cifre')) {
+                const structure = analyzeTextStructure();
+                const uniqueWords = new Set(extractedText.toLowerCase().match(/\b\w+\b/g)).size;
+                const readingTime = Math.ceil(structure.words / 200); // average reading speed
+                
+                return `Statistici text:\n📊 ${structure.words} cuvinte totale, ${uniqueWords} cuvinte unice\n📖 Timp de citire: ~${readingTime} minute\n📝 Densitate: ${Math.round(structure.characters / structure.sentences)} caractere/propoziție\n🎯 Varietate vocabular: ${Math.round((uniqueWords / structure.words) * 100)}%`;
             }
-            
-            if (lowerQuestion.includes('data') || lowerQuestion.includes('date')) {
-                const dateRegex = /\d{1,2}[/.,-]\d{1,2}[/.,-]\d{2,4}|\d{1,2}\s+(ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{2,4}/gi;
-                const dates = extractedText.match(dateRegex);
-                if (dates) {
-                    return `Am găsit ${dates.length} date: ${dates.join(', ')}`;
-                }
-                return 'Nu am identificat date în text.';
-            }
-            
-            // Generic search in text
-            const words = question.split(' ').filter(word => word.length > 3);
-            for (let word of words) {
-                if (lowerText.includes(word.toLowerCase())) {
+
+            // Enhanced search with context
+            if (lowerQuestion.includes('conține') || lowerQuestion.includes('contine') || lowerQuestion.includes('caută') || lowerQuestion.includes('cauta')) {
+                const searchTerms = question.match(/["']([^"']+)["']/) || question.split(/conține|contine|caută|cauta/i)[1]?.trim().split(' ').filter(w => w.length > 2);
+                
+                if (searchTerms) {
+                    const term = Array.isArray(searchTerms) ? searchTerms[0] : searchTerms[1] || searchTerms;
                     const sentences = extractedText.split(/[.!?]+/);
-                    for (let sentence of sentences) {
-                        if (sentence.toLowerCase().includes(word.toLowerCase())) {
-                            return `Despre "${word}" am găsit: "${sentence.trim()}..."`;
-                        }
+                    const matchingSentences = sentences.filter(s => s.toLowerCase().includes(term.toLowerCase()));
+                    
+                    if (matchingSentences.length > 0) {
+                        return `Am găsit "${term}" în ${matchingSentences.length} context${matchingSentences.length > 1 ? 'e' : ''}:\n"${matchingSentences[0].trim()}..."${matchingSentences.length > 1 ? `\nȘi în alte ${matchingSentences.length - 1} locuri.` : ''}`;
+                    } else {
+                        return `Nu am găsit "${term}" în text. Încearcă să cauți termeni înrudiți sau verifică ortografia.`;
                     }
                 }
             }
+
+            // Language detection with details
+            if (lowerQuestion.includes('limba') || lowerQuestion.includes('language')) {
+                const romanianIndicators = ['și', 'sau', 'în', 'cu', 'de', 'la', 'pe', 'pentru', 'din', 'către', 'este', 'sunt', 'avea', 'că', 'să'];
+                const englishIndicators = ['the', 'and', 'or', 'in', 'with', 'of', 'at', 'on', 'for', 'from', 'is', 'are', 'have', 'that', 'to'];
+                
+                const roCount = romanianIndicators.filter(word => lowerText.includes(word)).length;
+                const enCount = englishIndicators.filter(word => lowerText.includes(word)).length;
+                
+                if (roCount > enCount && roCount > 2) {
+                    return `Textul este în română (${roCount} indicatori românești vs ${enCount} englezi). Conține elemente specifice limbii române.`;
+                } else if (enCount > roCount && enCount > 2) {
+                    return `Textul este în engleză (${enCount} indicatori englezi vs ${roCount} românești). Structura și vocabularul sunt specifice englezei.`;
+                } else if (roCount > 0 && enCount > 0) {
+                    return `Textul pare să fie mixt (${roCount} elemente românești, ${enCount} engleze). Poate fi un document bilingv sau conține termeni împrumutați.`;
+                }
+                
+                return `Nu pot determina cu certitudine limba textului. Poate fi în altă limbă sau conține prea puțin text pentru analiză.`;
+            }
+
+            // Quality assessment
+            if (lowerQuestion.includes('calitate') || lowerQuestion.includes('quality') || lowerQuestion.includes('lizibil')) {
+                const structure = analyzeTextStructure();
+                const errors = extractedText.match(/[^\w\s.,!?;:()\-"']/g) || [];
+                const capitalRatio = (extractedText.match(/[A-Z]/g) || []).length / extractedText.length;
+                
+                let quality = 'înaltă';
+                const issues = [];
+                
+                if (errors.length > structure.words * 0.1) {
+                    quality = 'scăzută';
+                    issues.push('multe caractere neobișnuite detectate');
+                }
+                if (capitalRatio > 0.3) {
+                    issues.push('posibile probleme cu formatarea');
+                }
+                if (structure.avgWordsPerSentence < 3) {
+                    issues.push('propoziții foarte scurte sau fragmentate');
+                }
+                
+                if (issues.length > 1) quality = 'medie';
+                
+                return `Calitatea extragerii textului pare să fie ${quality}${issues.length > 0 ? `. Observații: ${issues.join(', ')}` : '. Textul a fost extras corect și este ușor de citit.'}.`;
+            }
+
+            // Generic intelligent search with enhanced context
+            const questionWords = question.toLowerCase().split(' ').filter(word => word.length > 3);
+            for (let word of questionWords) {
+                if (lowerText.includes(word)) {
+                    const sentences = extractedText.split(/[.!?]+/);
+                    const relevantSentences = sentences.filter(s => s.toLowerCase().includes(word));
+                    
+                    if (relevantSentences.length > 0) {
+                        const context = relevantSentences[0].trim();
+                        const additionalInfo = relevantSentences.length > 1 ? ` (și în alte ${relevantSentences.length - 1} contexte)` : '';
+                        return `Despre "${word}": "${context}"${additionalInfo}`;
+                    }
+                }
+            }
+
+            // Enhanced default responses based on text analysis
+            const structure = analyzeTextStructure();
+            const docType = detectDocumentType();
             
-            // Default responses
-            const defaultResponses = [
-                `În textul extras am identificat informații despre diverse subiecte. Poți să îmi pui întrebări mai specifice?`,
-                `Textul conține ${extractedText.split(' ').length} cuvinte. Ce anume te interesează despre conținut?`,
-                `Am procesat textul din imagine. Încearcă să îmi pui întrebări despre cuvinte specifice, numere, date sau email-uri.`,
-                `Pentru a te ajuta mai bine, poți să îmi spui ce anume cauți în acest text?`
+            const smartDefaults = [
+                `Am analizat acest ${docType} cu ${structure.words} cuvinte. Poți să mă întrebi despre conținutul specific, cuvinte cheie, sau să îmi ceri o analiză detaliată.`,
+                `Textul tău conține informații interesante. Încearcă să mă întrebi: "Ce tip de document este?", "Fă o analiză", sau "Extrage informațiile importante".`,
+                `Am procesat cu succes textul din imagine. Pentru răspunsuri mai precise, întreabă despre elemente specifice sau cere o analiză completă.`,
+                `Detectez că este un ${docType}. Pot să analizez sentiment, să extrag informații cheie, sau să răspund la întrebări specifice despre conținut.`
             ];
             
-            return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
+            return smartDefaults[Math.floor(Math.random() * smartDefaults.length)];
         }
 
         function handleEnterKey(event) {
