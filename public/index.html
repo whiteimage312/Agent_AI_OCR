@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent AI - OCR & Analiză Text</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .upload-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .upload-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .upload-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .camera-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .image-preview {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .processing {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .text-result {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .chat-section {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .chat-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .chat-header h3 {
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .chat-messages {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 18px;
+            border-radius: 20px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .ai-message {
+            background: #f1f3f4;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .upload-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .chat-input-container {
+                flex-direction: column;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Agent AI OCR</h1>
+            <p>Extrage text din imagini și pune întrebări despre conținut</p>
+        </div>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h2>📸 Încarcă sau Fotografiază</h2>
+                <p>Selectează o imagine pentru a extrage textul din ea</p>
+                <div class="upload-buttons">
+                    <button class="upload-btn camera-btn" onclick="openCamera()">
+                        📷 Fă Poză
+                    </button>
+                    <label for="fileInput" class="upload-btn">
+                        📁 Încarcă Fișier
+                    </label>
+                    <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+
+            <div id="imagePreview" class="image-preview hidden">
+                <img id="previewImg" class="preview-img" alt="Preview">
+            </div>
+
+            <div id="processing" class="processing hidden">
+                <div class="spinner"></div>
+                <p>Procesez imaginea și extrag textul...</p>
+            </div>
+
+            <div id="textResult" class="text-result hidden"></div>
+
+            <div id="chatSection" class="chat-section hidden">
+                <div class="chat-header">
+                    <h3>💬 Întreabă despre text</h3>
+                    <p>Pune întrebări despre textul extras din imagine</p>
+                </div>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Pune o întrebare despre textul extras..." onkeypress="handleEnterKey(event)">
+                    <button id="sendBtn" class="send-btn" onclick="sendMessage()">Trimite</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let extractedText = '';
+        let chatHistory = [];
+
+        // Camera functionality
+        function openCamera() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'environment';
+            input.onchange = handleFileSelect;
+            input.click();
+        }
+
+        // File selection handler
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                displayImage(file);
+                processImage(file);
+            }
+        }
+
+        // Display selected image
+        function displayImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                const img = document.getElementById('previewImg');
+                img.src = e.target.result;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Process image with Tesseract OCR
+        async function processImage(file) {
+            const processing = document.getElementById('processing');
+            const textResult = document.getElementById('textResult');
+            const chatSection = document.getElementById('chatSection');
+            
+            processing.classList.remove('hidden');
+            textResult.classList.add('hidden');
+            chatSection.classList.add('hidden');
+
+            try {
+                const { data: { text } } = await Tesseract.recognize(file, 'ron+eng', {
+                    logger: m => console.log(m)
+                });
+                
+                extractedText = text.trim();
+                
+                if (extractedText) {
+                    textResult.textContent = extractedText;
+                    textResult.classList.remove('hidden');
+                    chatSection.classList.remove('hidden');
+                    
+                    // Clear previous chat
+                    chatHistory = [];
+                    document.getElementById('chatMessages').innerHTML = '';
+                    
+                    // Add welcome message
+                    addMessage('ai', `Am extras textul din imagine! Poți pune întrebări despre conținut. Am găsit ${extractedText.split(' ').length} cuvinte.`);
+                } else {
+                    showError('Nu am putut extrage text din această imagine. Încearcă cu o imagine mai clară.');
+                }
+            } catch (error) {
+                console.error('OCR Error:', error);
+                showError('A apărut o eroare la procesarea imaginii. Te rog încearcă din nou.');
+            } finally {
+                processing.classList.add('hidden');
+            }
+        }
+
+        // Chat functionality
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message || !extractedText) return;
+            
+            addMessage('user', message);
+            input.value = '';
+            
+            // Simulate AI processing
+            setTimeout(() => {
+                const response = generateAIResponse(message);
+                addMessage('ai', response);
+            }, 1000);
+        }
+
+        function addMessage(sender, text) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            messageDiv.textContent = text;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            chatHistory.push({ sender, text });
+        }
+
+        function generateAIResponse(question) {
+            const lowerQuestion = question.toLowerCase();
+            const lowerText = extractedText.toLowerCase();
+            
+            // Simple keyword-based responses
+            if (lowerQuestion.includes('câte cuvinte') || lowerQuestion.includes('cate cuvinte')) {
+                const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+                return `Textul conține ${wordCount} cuvinte.`;
+            }
+            
+            if (lowerQuestion.includes('câte caractere') || lowerQuestion.includes('cate caractere')) {
+                return `Textul conține ${extractedText.length} caractere (inclusiv spații).`;
+            }
+            
+            if (lowerQuestion.includes('sumar') || lowerQuestion.includes('rezumat')) {
+                const sentences = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+                if (sentences.length > 0) {
+                    return `Textul conține ${sentences.length} propoziții. Prima propoziție: "${sentences[0].trim()}..."`;
+                }
+                return 'Nu pot face un rezumat al acestui text.';
+            }
+            
+            if (lowerQuestion.includes('conține') || lowerQuestion.includes('contine')) {
+                const searchTerm = question.split(/conține|contine/i)[1]?.trim().replace(/[?"]/g, '');
+                if (searchTerm && lowerText.includes(searchTerm.toLowerCase())) {
+                    return `Da, textul conține "${searchTerm}".`;
+                } else if (searchTerm) {
+                    return `Nu, textul nu conține "${searchTerm}".`;
+                }
+            }
+            
+            if (lowerQuestion.includes('limba') || lowerQuestion.includes('language')) {
+                // Simple language detection
+                const romanianWords = ['și', 'sau', 'în', 'cu', 'de', 'la', 'pe', 'pentru', 'din', 'către'];
+                const englishWords = ['the', 'and', 'or', 'in', 'with', 'of', 'at', 'on', 'for', 'from'];
+                
+                const hasRomanian = romanianWords.some(word => lowerText.includes(word));
+                const hasEnglish = englishWords.some(word => lowerText.includes(word));
+                
+                if (hasRomanian && hasEnglish) {
+                    return 'Textul pare să conțină atât română cât și engleză.';
+                } else if (hasRomanian) {
+                    return 'Textul pare să fie în română.';
+                } else if (hasEnglish) {
+                    return 'Textul pare să fie în engleză.';
+                }
+                return 'Nu pot determina cu certitudine limba textului.';
+            }
+            
+            if (lowerQuestion.includes('email') || lowerQuestion.includes('mail')) {
+                const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+                const emails = extractedText.match(emailRegex);
+                if (emails) {
+                    return `Am găsit ${emails.length} adrese de email: ${emails.join(', ')}`;
+                }
+                return 'Nu am găsit adrese de email în text.';
+            }
+            
+            if (lowerQuestion.includes('telefon') || lowerQuestion.includes('phone')) {
+                const phoneRegex = /(\+?\d{1,4}[-.\s]?)?\(?\d{1,3}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g;
+                const phones = extractedText.match(phoneRegex);
+                if (phones) {
+                    return `Am găsit posibile numere de telefon: ${phones.join(', ')}`;
+                }
+                return 'Nu am identificat numere de telefon în text.';
+            }
+            
+            if (lowerQuestion.includes('data') || lowerQuestion.includes('date')) {
+                const dateRegex = /\d{1,2}[/.,-]\d{1,2}[/.,-]\d{2,4}|\d{1,2}\s+(ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{2,4}/gi;
+                const dates = extractedText.match(dateRegex);
+                if (dates) {
+                    return `Am găsit ${dates.length} date: ${dates.join(', ')}`;
+                }
+                return 'Nu am identificat date în text.';
+            }
+            
+            // Generic search in text
+            const words = question.split(' ').filter(word => word.length > 3);
+            for (let word of words) {
+                if (lowerText.includes(word.toLowerCase())) {
+                    const sentences = extractedText.split(/[.!?]+/);
+                    for (let sentence of sentences) {
+                        if (sentence.toLowerCase().includes(word.toLowerCase())) {
+                            return `Despre "${word}" am găsit: "${sentence.trim()}..."`;
+                        }
+                    }
+                }
+            }
+            
+            // Default responses
+            const defaultResponses = [
+                `În textul extras am identificat informații despre diverse subiecte. Poți să îmi pui întrebări mai specifice?`,
+                `Textul conține ${extractedText.split(' ').length} cuvinte. Ce anume te interesează despre conținut?`,
+                `Am procesat textul din imagine. Încearcă să îmi pui întrebări despre cuvinte specifice, numere, date sau email-uri.`,
+                `Pentru a te ajuta mai bine, poți să îmi spui ce anume cauți în acest text?`
+            ];
+            
+            return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
+        }
+
+        function handleEnterKey(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.querySelector('.main-content').appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+
+        // Initialize app
+        console.log('Agent AI OCR inițializat cu succes!');
+    </script>
+</body>
+</html>
